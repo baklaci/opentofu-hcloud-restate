@@ -13,16 +13,16 @@ This module creates:
 
 ## Quick Start
 
-2. Edit `terraform.tfvars` with your values:
+1. Edit `restate-server/terraform.tfvars` with your values:
 
    - Hetzner Cloud API token
    - Tailscale API key and tailnet
    - SSH key name and path
    - Server configuration
 
-3. Deploy:
+2. Deploy:
    ```bash
-   cd examples/basic
+   cd restate-server
    tofu init
    tofu plan
    tofu apply
