@@ -1,0 +1,34 @@
+# Restate Server Configuration
+[common]
+cluster-name = "myrestate"
+allow-bootstrap = true
+bootstrap-num-partitions = 1024
+
+# Keep etcd for cluster management and metadata
+[common.metadata-store]
+address = "http://etcd:2379"
+client-connect-timeout = "10s"
+client-request-timeout = "10s"
+
+%{ if kafka_enabled }
+# Kafka configuration for event sourcing (Option 1: Hybrid approach)
+[[ingress.kafka-clusters]]
+name = "${kafka_cluster_name}"
+brokers = [%{ for server in kafka_servers }"PLAINTEXT://${server}"%{ if server != kafka_servers[length(kafka_servers)-1] }, %{ endif }%{ endfor }]
+%{ endif }
+
+[worker]
+bind-address = "0.0.0.0:9070"
+
+[ingress]
+bind-address = "0.0.0.0:8080"
+advertised-ingress-endpoint = "${ingress_endpoint}"
+
+[log]
+level = "info"
+
+[worker.invoker]
+default-retry-policy.type = "exponential"
+default-retry-policy.initial-interval = "50ms"
+default-retry-policy.max-interval = "10s"
+default-retry-policy.max-attempts = 2147483647  # Effectively infinite

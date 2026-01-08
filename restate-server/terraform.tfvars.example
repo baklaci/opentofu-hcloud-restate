@@ -1,0 +1,25 @@
+# Hetzner Cloud API token
+# Get this from: https://console.hetzner.cloud/projects
+hcloud_token = "your-token"
+
+# SSH key name in Hetzner Cloud
+# Upload your SSH key first at: https://console.hetzner.cloud/projects
+ssh_key_name = "your-ssh-key"
+
+# Tailscale API key
+# Get this from: https://login.tailscale.com/admin/settings/keys
+tailscale_api_key = "your-key"
+
+# Tailscale tailnet name
+# This is usually your organization name or email domain
+tailscale_tailnet = "example.com"
+
+# Server name for the Restate instance
+server_name = "example-restate"
+
+# Username for the administrative account on the server
+user_name = "admin"
+
+# Optional: Override the ingress endpoint (defaults to http://{server_name}:8080)
+# ingress_endpoint = "http://example-restate:8080"
+

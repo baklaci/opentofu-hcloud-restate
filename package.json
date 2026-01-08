@@ -1,0 +1,14 @@
+{
+  "name": "restate-test-service",
+  "version": "1.0.0",
+  "description": "Simple test service for Restate (no dependencies required)",
+  "main": "test-service.js",
+  "scripts": {
+    "start": "node test-service.js",
+    "test": "node test-service.js &",
+    "register": "curl -X POST http://test:9070/deployments -H 'Content-Type: application/json' -d '{\"uri\": \"http://test:9080\"}'",
+    "call-greet": "curl -X POST http://test:8080/greeter/greet -H 'Content-Type: application/json' -d '\"World\"'",
+    "call-count": "curl -X POST http://test:8080/greeter/count",
+    "direct-test": "curl -X POST http://test:9080/greeter/greet -H 'Content-Type: application/json' -d '\"Test\"'"
+  }
+}

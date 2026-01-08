@@ -1,0 +1,107 @@
+services:
+  # Metadata store (etcd) for Restate cluster coordination
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.9
+    container_name: restate-etcd
+    command:
+      - /usr/local/bin/etcd
+      - --name=etcd0
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379,http://0.0.0.0:2378
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd:2380
+      - --initial-cluster=etcd0=http://etcd:2380
+      - --initial-cluster-token=restate-cluster
+      - --initial-cluster-state=new
+      - --auto-compaction-retention=1
+      - --enable-grpc-gateway=true
+      - --grpc-keepalive-min-time=30s
+      - --grpc-keepalive-interval=60s
+      - --grpc-keepalive-timeout=20s
+    ports:
+      - "2379:2379"  # Client API
+      - "2378:2378"  # Additional client port
+    volumes:
+      - etcd_data:/etcd-data
+    networks:
+      - restate-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  restate:
+    image: restatedev/restate:latest
+    container_name: restate-server
+    ports:
+      - "9070:9070"  # Admin API
+      - "8080:8080"  # Ingress API
+    environment:
+      - RESTATE_LOG_LEVEL=info
+      - RESTATE_WORKER__BIND_ADDRESS=0.0.0.0:9070
+      - RESTATE_INGRESS__BIND_ADDRESS=0.0.0.0:8080
+      - RESTATE_COMMON__CLUSTER_NAME=myrestate
+      - RESTATE_COMMON__ALLOW_BOOTSTRAP=true
+      - RESTATE_COMMON__BOOTSTRAP_NUM_PARTITIONS=1024
+      - RESTATE_COMMON__METADATA_STORE__ADDRESS=http://etcd:2379
+      - RESTATE_COMMON__METADATA_STORE__CLIENT_CONNECT_TIMEOUT=10s
+      - RESTATE_COMMON__METADATA_STORE__CLIENT_REQUEST_TIMEOUT=10s
+      - RESTATE_INGRESS__ADVERTISED_INGRESS_ENDPOINT=${ingress_endpoint}
+%{ if kafka_enabled }
+      - RESTATE_COMMON__KAFKA__BOOTSTRAP_SERVERS=${kafka_servers}
+      - RESTATE_COMMON__EVENT_STORE__TYPE=kafka
+      - RESTATE_COMMON__EVENT_STORE__TOPIC_PREFIX=${kafka_topic_prefix}
+      - RESTATE_COMMON__EVENT_STORE__REPLICATION_FACTOR=${kafka_replication_factor}
+%{ endif }
+      - RESTATE_DO_NOT_TRACK=1
+    volumes:
+      - restate_data:/restate-data
+      - ./restate.toml:/config/restate.toml:ro
+    command: ["--config-file", "/config/restate.toml"]
+    depends_on:
+      etcd:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9070/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - restate-network
+%{ if kafka_enabled }
+    # Add external network connectivity to reach Kafka brokers via Tailscale
+    # fix this so it doesnt need hardcoded ip's
+    extra_hosts:
+      - "kafka-broker-1:100.87.10.105"
+      - "kafka-broker-2:100.95.120.38"
+      - "kafka-broker-3:100.89.23.40"
+%{ endif }
+
+  # Optional: Restate CLI for management
+  restate-cli:
+    image: restatedev/restate:latest
+    container_name: restate-cli
+    entrypoint: ["restate"]
+    command: ["--help"]
+    depends_on:
+      - restate
+    networks:
+      - restate-network
+    profiles:
+      - cli
+
+volumes:
+  restate_data:
+    driver: local
+  etcd_data:
+    driver: local
+
+networks:
+  restate-network:
+    driver: bridge
